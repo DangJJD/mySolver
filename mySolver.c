@@ -1,3 +1,4 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -5,76 +6,91 @@
 
 void printUsage(void);
 
-// ./mysolver [problem type] [solver type] [args] [range start] [range end]
 int main(int argc, char *argv[]) {
-	// TODO: Stack / Heap : General rule of thumb, Heap is for memory we can't know the size of at compile time. This would include the arguements list because we don't know how big the polynomial might be. Consider changing some allocations over to the heap. -Boot.dev lessons
-	size_t length = argc; // first three and last two, example shows last two are a range
-	int max = 20; //arbitrary max of function. Could go bigger. 
+    int max = 20;
 
-	if (argc < 4) {
-		fprintf(stderr, "Not enough arguements given\n");
-		printUsage();
-		return 0;
-	} else if (argc > max) {
-		fprintf(stderr, "Too many arguements: Max: %d\n", max);
-		return 1;
-	} 
+    /*
+     * Minimum command:
+     * ./mySolver COS BiSec 0 0 3.14
+     * For POLY, at least one coefficient is required.
+     */
+    if (argc < 6) {
+        fprintf(stderr, "Error: Not enough arguments given.\n");
+        printUsage();
+        return 1;
+    }
 
-	double output;
+    if (argc > max) {
+        fprintf(stderr, "Error: Too many arguments. Max: %d\n", max);
+        return 1;
+    }
 
-	char *problemType = argv[1];
-	char *solverType = argv[2];
-	double *args = malloc(sizeof(double) * length);
-	if (args == NULL) {
-		fprintf(stderr, "Error: Issue allocating memory for args");
-		return 1;
-	}
+    char *problemType = argv[1];
+    char *solverType = argv[2];
 
-	double bounds[] = {atof(argv[argc - 2]), atof(argv[argc - 1])};
+    /* Number of values between solver name and interval bounds */
+    size_t length = (size_t)(argc - 5);
 
-	for (int i = 3; i < argc - 2; i++){
-		args[i-3] = atof(argv[i]);
-	}
-	
-	if (!(strcmp("POLY", problemType) == 0 || strcmp("COS", problemType) == 0
-	|| strcmp("SIN", problemType) == 0 || strcmp("TAN", problemType) == 0 
-	|| strcmp("EXP", problemType) == 0 || strcmp("LOG", problemType) == 0 )) {
-		fprintf(stderr, "Error: Not a known Problem Type: \n");
-		printUsage();
-		return 0;
-	}
-	
-	if (strcmp("BiSec", solverType) == 0){
-		output = BiSec(problemType, length, args, bounds[0], bounds[1]);
-	} else if (strcmp("FalsePos", solverType) == 0){
-		output = FalsePos(problemType, length, args, bounds[0], bounds[1]);
-	} else if (strcmp("Newton1", solverType) == 0){
-		output = Newton1(problemType, length, args, bounds[0], bounds[1]);
-	} else if (strcmp("Newton2", solverType) == 0){
-		output = Newton2(problemType, length, args, bounds[0], bounds[1]);
-	} else if (strcmp("Bracket-Newton1", solverType) == 0){
-		output = BracketNewton1(problemType, length, args, bounds[0], bounds[1]);
-	} else if (strcmp("Bracket-Newton2", solverType) == 0){
-		output = BracketNewton2(problemType, length, args, bounds[0], bounds[1]);
-	} else {
-	fprintf(stderr, "Error: Not a known Solver Type: \n");
-	printUsage();
-	return 1;
-	};
-	
-// TODO: May also need to calculate the error. 
-	printf("Solver output: %.17g\n", output);
-	return 0;
+    double *args = malloc(length * sizeof(double));
+    if (args == NULL) {
+        fprintf(stderr, "Error: Memory allocation failed.\n");
+        return 1;
+    }
+
+    /* Read the interval from the last two arguments */
+    double bounds[2] = {
+        atof(argv[argc - 2]),
+        atof(argv[argc - 1])
+    };
+
+    /* Read coefficients or equation parameter */
+    for (size_t i = 0; i < length; i++) {
+        args[i] = atof(argv[i + 3]);
+    }
+
+    if (strcmp(problemType, "POLY") != 0 &&
+        strcmp(problemType, "COS") != 0 &&
+        strcmp(problemType, "SIN") != 0 &&
+        strcmp(problemType, "TAN") != 0 &&
+        strcmp(problemType, "EXP") != 0 &&
+        strcmp(problemType, "LOG") != 0) {
+        fprintf(stderr, "Error: Unknown problem type: %s\n", problemType);
+        printUsage();
+        free(args);
+        return 1;
+    }
+
+    double output;
+
+    if (strcmp(solverType, "BiSec") == 0) {
+        output = BiSec(problemType, length, args, bounds[0], bounds[1]);
+    } else if (strcmp(solverType, "FalsePos") == 0) {
+        output = FalsePos(problemType, length, args, bounds[0], bounds[1]);
+    } else if (strcmp(solverType, "Newton1") == 0) {
+        output = Newton1(problemType, length, args, bounds[0], bounds[1]);
+    } else if (strcmp(solverType, "Newton2") == 0) {
+        output = Newton2(problemType, length, args, bounds[0], bounds[1]);
+    } else if (strcmp(solverType, "Bracket-Newton1") == 0) {
+        output = BracketNewton1(problemType, length, args, bounds[0], bounds[1]);
+    } else if (strcmp(solverType, "Bracket-Newton2") == 0) {
+        output = BracketNewton2(problemType, length, args, bounds[0], bounds[1]);
+    } else {
+        fprintf(stderr, "Error: Unknown solver type: %s\n", solverType);
+        printUsage();
+        free(args);
+        return 1;
+    }
+
+    printf("Solver output: %.17g\n", output);
+
+    free(args);
+    return 0;
 }
 
 void printUsage(void) {
-	printf("Error: \n");
-	printf("=====================================================================================\n");
-	printf("<./mySolver> <Problem Type> <Solver Type> <Coefficients> <Range Start> <Range End>\n");
-	printf("=====================================================================================\n");
-	printf("Known Problem Types: \n");
-	printf("<POLY> <COS> <SIN> <TAN> <EXP> <LOG>\n");
-	printf("Known Solver Types: \n");
-	printf("<BiSec> <FalsePos> <Newton1> <Newton2> <Bracket-Newton1> <Bracket-Newton2>\n");
-	printf("=====================================================================================\n");
+    printf("Usage:\n");
+    printf("./mySolver <Problem Type> <Solver Type> <Arguments> <Range Start> <Range End>\n");
+    printf("Problem types: POLY COS SIN TAN EXP LOG\n");
+    printf("Solver types: BiSec FalsePos Newton1 Newton2 "
+           "Bracket-Newton1 Bracket-Newton2\n");
 }
