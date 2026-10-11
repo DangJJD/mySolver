@@ -46,9 +46,38 @@ double BiSec(char *problemType, size_t length, double args[], double boundsA, do
 	fprintf(stderr, "Error: Hit Max Loops");
 	exit(1);
 }
-double FalsePos(char *problemType, size_t length, double args[], double boundsA, double boundsB) {
-	(void)problemType; (void)length; (void)args; (void)boundsA; (void)boundsB;
-	return 1;
+double FalsePos(char *problemType, size_t length, double args[],
+                double boundsA, double boundsB) {
+    double yA = findY(problemType, length, args, boundsA);
+    double yB = findY(problemType, length, args, boundsB);
+
+    if (yA == 0) return boundsA;
+    if (yB == 0) return boundsB;
+
+    if (yA * yB > 0) {
+        fprintf(stderr, "Error: No root in the interval.\n");
+        exit(1);
+    }
+
+    for (int i = 0; i < max_loops; i++) {
+        double xC = (boundsA * yB - boundsB * yA) / (yB - yA);
+        double yC = findY(problemType, length, args, xC);
+
+        if (fabs(yC) < tolerance) {
+            return xC;
+        }
+
+        if (yA * yC < 0) {
+            boundsB = xC;
+            yB = yC;
+        } else {
+            boundsA = xC;
+            yA = yC;
+        }
+    }
+
+    fprintf(stderr, "Error: Hit Max Loops\n");
+    exit(1);
 }
 double Newton1(char *problemType, size_t length, double args[], double boundsA, double boundsB) {
 	(void)problemType; (void)length; (void)args; (void)boundsA; (void)boundsB;
@@ -79,7 +108,7 @@ double horner(size_t length, double arr[], double x) {
 }
 
 double findY(char *problemType, size_t length, double args[], double x){
-	double y;
+	double y = 0.0;
 	double c = args[0];
 	if (strcmp("POLY", problemType) == 0) {
 		y = horner(length, args, x); // NOTE: x: [-inf, inf]
