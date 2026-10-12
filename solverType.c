@@ -10,6 +10,9 @@
 #endif
 
 double findY(char *problemType, size_t length, double args[], double x);
+double findDerivative(char *problemType, size_t length, double args[], double x);
+double findAnalyticalDerivative(char *problemType, size_t length, double args[], double x);
+
 
 // NOTE: Cant use pi this way unless I calculate it for each func
 // static const double pi = acos(-1); // found in math.h examples
@@ -80,21 +83,177 @@ double FalsePos(char *problemType, size_t length, double args[],
     exit(1);
 }
 double Newton1(char *problemType, size_t length, double args[], double boundsA, double boundsB) {
-	(void)problemType; (void)length; (void)args; (void)boundsA; (void)boundsB;
-	return 1;
+    double x = (boundsA + boundsB) / 2.0;
+
+    for (int i = 0; i < max_loops; i++) {
+        double y = findY(problemType, length, args, x);
+
+        if (fabs(y) < tolerance) {
+            return x;
+        }
+
+        double dy = findAnalyticalDerivative(problemType, length, args, x);
+
+        if (fabs(dy) < 1e-12) {
+            fprintf(stderr, "Error: Newton1 derivative is too small.\n");
+            exit(1);
+        }
+
+        double nextX = x - y / dy;
+
+        if (!isfinite(nextX)) {
+            fprintf(stderr, "Error: Newton1 produced a non-finite value.\n");
+            exit(1);
+        }
+
+        x = nextX;
+    }
+
+    fprintf(stderr, "Error: Newton1 hit max loops.\n");
+    exit(1);
 }
-double Newton2(char *problemType, size_t length, double args[], double boundsA, double boundsB) {
-	(void)problemType; (void)length; (void)args; (void)boundsA; (void)boundsB;
-	return 1;
+
+double Newton2(char *problemType, size_t length, double args[],
+               double boundsA, double boundsB) {
+    double x = (boundsA + boundsB) / 2.0;
+
+    for (int i = 0; i < max_loops; i++) {
+        double y = findY(problemType, length, args, x);
+
+        if (fabs(y) < tolerance) {
+            return x;
+        }
+
+        double dy = findDerivative(problemType, length, args, x);
+
+        if (fabs(dy) < 1e-12) {
+            fprintf(stderr, "Error: Newton2 derivative is too small.\n");
+            exit(1);
+        }
+
+        double nextX = x - y / dy;
+
+        if (!isfinite(nextX)) {
+            fprintf(stderr, "Error: Newton2 produced an invalid value.\n");
+            exit(1);
+        }
+
+        x = nextX;
+    }
+
+    fprintf(stderr, "Error: Newton2 hit max loops.\n");
+    exit(1);
 }
-double BracketNewton1(char *problemType, size_t length, double args[], double boundsA, double boundsB) {
-	(void)problemType; (void)length; (void)args; (void)boundsA; (void)boundsB;
-	return 1;
+
+
+double BracketNewton1(char *problemType, size_t length, double args[],
+                      double boundsA, double boundsB) {
+    double yA = findY(problemType, length, args, boundsA);
+    double yB = findY(problemType, length, args, boundsB);
+
+    if (yA == 0) return boundsA;
+    if (yB == 0) return boundsB;
+
+    if (yA * yB > 0) {
+        fprintf(stderr, "Error: No root in the interval.\n");
+        exit(1);
+    }
+
+    double x = (boundsA + boundsB) / 2.0;
+
+    for (int i = 0; i < max_loops; i++) {
+        double y = findY(problemType, length, args, x);
+
+        if (fabs(y) < tolerance) return x;
+
+        if (yA * y < 0) {
+            boundsB = x;
+            yB = y;
+        } else {
+            boundsA = x;
+            yA = y;
+        }
+
+        double dy = findAnalyticalDerivative(
+            problemType, length, args, x);
+
+        double nextX = (boundsA + boundsB) / 2.0;
+
+        if (fabs(dy) > 1e-12) {
+            double candidate = x - y / dy;
+
+            if (isfinite(candidate) &&
+                candidate > boundsA && candidate < boundsB) {
+                double candidateY = findY(
+                    problemType, length, args, candidate);
+
+                if (fabs(candidateY) < fabs(y)) {
+                    nextX = candidate;
+                }
+            }
+        }
+
+        x = nextX;
+    }
+
+    fprintf(stderr, "Error: BracketNewton1 hit max loops.\n");
+    exit(1);
 }
-double BracketNewton2(char *problemType, size_t length, double args[], double boundsA, double boundsB) {
-	(void)problemType; (void)length; (void)args; (void)boundsA; (void)boundsB;
-	return 1;
+
+
+double BracketNewton2(char *problemType, size_t length, double args[],
+                      double boundsA, double boundsB) {
+    double yA = findY(problemType, length, args, boundsA);
+    double yB = findY(problemType, length, args, boundsB);
+
+    if (yA == 0) return boundsA;
+    if (yB == 0) return boundsB;
+
+    if (yA * yB > 0) {
+        fprintf(stderr, "Error: No root in the interval.\n");
+        exit(1);
+    }
+
+    double x = (boundsA + boundsB) / 2.0;
+
+    for (int i = 0; i < max_loops; i++) {
+        double y = findY(problemType, length, args, x);
+
+        if (fabs(y) < tolerance) return x;
+
+        if (yA * y < 0) {
+            boundsB = x;
+            yB = y;
+        } else {
+            boundsA = x;
+            yA = y;
+        }
+
+        double dy = findDerivative(problemType, length, args, x);
+        double nextX = (boundsA + boundsB) / 2.0;
+
+        if (fabs(dy) > 1e-12) {
+            double candidate = x - y / dy;
+
+            if (isfinite(candidate) &&
+                candidate > boundsA && candidate < boundsB) {
+                double candidateY = findY(
+                    problemType, length, args, candidate);
+
+                if (fabs(candidateY) < fabs(y)) {
+                    nextX = candidate;
+                }
+            }
+        }
+
+        x = nextX;
+    }
+
+    fprintf(stderr, "Error: BracketNewton2 hit max loops.\n");
+    exit(1);
 }
+
+
 
 
 double horner(size_t length, double arr[], double x) {
@@ -140,18 +299,62 @@ double findY(char *problemType, size_t length, double args[], double x){
 			exit(1);
 		}
 
-	} else if (strcmp("EXP", problemType) == 0) {
-		y = exp(x); // NOTE: x: [-inf, inf]
+	
+} else if (strcmp("EXP", problemType) == 0) {
+    y = exp(x) - c;
+  
+} else if (strcmp("LOG", problemType) == 0) {
+    if (0 < x) {
+        y = log(x) - c;
+    } else {
+        fprintf(stderr, "X is Out of Bounds ERROR\n");
+        fprintf(stderr, "Log: X: %.17g\n", x);
+        exit(1);
+    }
+}
 
-	} else if (strcmp("LOG", problemType) == 0) {
-		if ( 0 < x ) {
-			y = log(x) - c;
-		} else {
-			fprintf(stderr, "X is Out of Bounds ERROR\n");
-			fprintf(stderr, "Log: X: %.17g\n", x);
-			exit(1);
-		}
-	}
 
+	
+		
 	return y;
 }
+
+double findDerivative(char *problemType, size_t length, double args[], double x) {
+    double h = 1e-6 * (1.0 + fabs(x));
+    double yPlus = findY(problemType, length, args, x + h);
+    double yMinus = findY(problemType, length, args, x - h);
+
+    return (yPlus - yMinus) / (2.0 * h);
+}
+
+
+double findAnalyticalDerivative(char *problemType, size_t length,
+                                double args[], double x) {
+    if (strcmp(problemType, "POLY") == 0) {
+        double derivative = 0.0;
+
+        for (size_t i = 0; i < length; i++) {
+            derivative = derivative * x
+                      + (i < length - 1
+                         ? args[i] * (double)(length - 1 - i)
+                         : 0.0);
+        }
+
+        return derivative;
+    } else if (strcmp(problemType, "COS") == 0) {
+        return -sin(x);
+    } else if (strcmp(problemType, "SIN") == 0) {
+        return cos(x);
+    } else if (strcmp(problemType, "TAN") == 0) {
+        double c = cos(x);
+        return 1.0 / (c * c);
+    } else if (strcmp(problemType, "EXP") == 0) {
+        return exp(x);
+    } else if (strcmp(problemType, "LOG") == 0) {
+        return 1.0 / x;
+    }
+
+    fprintf(stderr, "Error: Unknown problem type in derivative.\n");
+    exit(1);
+}
+
