@@ -85,6 +85,11 @@ double FalsePos(char *problemType, size_t length, double args[],
 double Newton1(char *problemType, size_t length, double args[], double boundsA, double boundsB) {
     double x = (boundsA + boundsB) / 2.0;
 
+	printf("Initial Guess: %g\n", x);
+        double A = findY(problemType, length, args, x);
+        double dA = findAnalyticalDerivative(problemType, length, args, x);
+	printf("Initial Y: %g\n", A);
+	printf("Initial dY: %g\n", dA);
     for (int i = 0; i < max_loops; i++) {
         double y = findY(problemType, length, args, x);
 
@@ -99,7 +104,7 @@ double Newton1(char *problemType, size_t length, double args[], double boundsA, 
             exit(1);
         }
 
-        double nextX = x - y / dy;
+        double nextX = x - ( y / dy );
 
         if (!isfinite(nextX)) {
             fprintf(stderr, "Error: Newton1 produced a non-finite value.\n");
@@ -109,6 +114,7 @@ double Newton1(char *problemType, size_t length, double args[], double boundsA, 
         x = nextX;
     }
 
+    printf("Last X value: %g\n", x);
     fprintf(stderr, "Error: Newton1 hit max loops.\n");
     exit(1);
 }
@@ -328,16 +334,12 @@ double findDerivative(char *problemType, size_t length, double args[], double x)
 }
 
 
-double findAnalyticalDerivative(char *problemType, size_t length,
-                                double args[], double x) {
+double findAnalyticalDerivative(char *problemType, size_t length, double args[], double x) {
     if (strcmp(problemType, "POLY") == 0) {
         double derivative = 0.0;
 
-        for (size_t i = 0; i < length; i++) {
-            derivative = derivative * x
-                      + (i < length - 1
-                         ? args[i] * (double)(length - 1 - i)
-                         : 0.0);
+        for (size_t i = 0; i < length - 1; i++) {
+            derivative = derivative * x + args[i] * (double)(length - 1 - i);
         }
 
         return derivative;
