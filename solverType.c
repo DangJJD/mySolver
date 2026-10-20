@@ -19,6 +19,12 @@ double findAnalyticalDerivative(char *problemType, size_t length, double args[],
 static const double pi = M_PI;
 static const int max_loops = 100;
 static const double tolerance = 1e-8;
+static const double xtol = 1e-15;   /* ~4-5 ulps, relative */
+
+/* True when a and b are so close that doubles can't do meaningfully better. */
+static int closeEnough(double a, double b) {
+    return a == b || fabs(b - a) <= xtol * (fabs(a) + fabs(b));
+}
 
 double BiSec(char *problemType, size_t length, double args[], double boundsA, double boundsB) {
 
@@ -45,10 +51,12 @@ double BiSec(char *problemType, size_t length, double args[], double boundsA, do
 		yB = findY(problemType, length, args, boundsB);
 		yC = findY(problemType, length, args, boundsC);
 		if (fabs(yC) < tolerance) return boundsC;
+		if (closeEnough(boundsA, boundsB)) return boundsC;
 	}
 	fprintf(stderr, "Error: Hit Max Loops");
 	exit(1);
 }
+
 double FalsePos(char *problemType, size_t length, double args[],
                 double boundsA, double boundsB) {
     double yA = findY(problemType, length, args, boundsA);
@@ -62,34 +70,49 @@ double FalsePos(char *problemType, size_t length, double args[],
         exit(1);
     }
 
+    int side = 0;
+
+    double prevX = boundsA;
     for (int i = 0; i < max_loops; i++) {
         double xC = (boundsA * yB - boundsB * yA) / (yB - yA);
         double yC = findY(problemType, length, args, xC);
 
-        if (fabs(yC) < tolerance) {
-            return xC;
-        }
+        if (fabs(yC) < tolerance) return xC;
+	if (i > 0 && closeEnough(prevX, xC)) return xC;
+	prevX = xC;
 
         if (yA * yC < 0) {
             boundsB = xC;
             yB = yC;
+	    if (side == +1) yA /= 2.0;   /* B replaced twice in a row: A is stuck */
+            side = +1;
         } else {
             boundsA = xC;
             yA = yC;
+	    if (side == -1) yB /= 2.0;   /* A replaced twice in a row: B is stuck */
+            side = -1;
         }
     }
 
     fprintf(stderr, "Error: Hit Max Loops\n");
     exit(1);
 }
-double Newton1(char *problemType, size_t length, double args[], double boundsA, double boundsB) {
-    double x = (boundsA + boundsB) / 2.0;
 
-	printf("Initial Guess: %g\n", x);
-        double A = findY(problemType, length, args, x);
-        double dA = findAnalyticalDerivative(problemType, length, args, x);
-	printf("Initial Y: %g\n", A);
-	printf("Initial dY: %g\n", dA);
+double Newton1(char *problemType, size_t length, double args[], double boundsA, double boundsB) {
+	double x = (boundsA + boundsB) / 2.0;
+
+	if (strcmp("EXP", problemType) == 0 ||
+		strcmp("LOG", problemType) == 0 ) {
+	double yA = findY(problemType, length, args, boundsA);
+	double yB = findY(problemType, length, args, boundsB);
+
+		if (yA * yB > 0 ) { 
+			fprintf(stderr, "Error: No Zero");
+			exit (1);
+		}
+	}
+
+
     for (int i = 0; i < max_loops; i++) {
         double y = findY(problemType, length, args, x);
 
@@ -110,6 +133,7 @@ double Newton1(char *problemType, size_t length, double args[], double boundsA, 
             fprintf(stderr, "Error: Newton1 produced a non-finite value.\n");
             exit(1);
         }
+	if (closeEnough(x, nextX)) return nextX;
 
         x = nextX;
     }
@@ -143,6 +167,7 @@ double Newton2(char *problemType, size_t length, double args[],
             fprintf(stderr, "Error: Newton2 produced an invalid value.\n");
             exit(1);
         }
+	if (closeEnough(x, nextX)) return nextX;
 
         x = nextX;
     }
@@ -150,7 +175,6 @@ double Newton2(char *problemType, size_t length, double args[],
     fprintf(stderr, "Error: Newton2 hit max loops.\n");
     exit(1);
 }
-
 
 double BracketNewton1(char *problemType, size_t length, double args[],
                       double boundsA, double boundsB) {
@@ -180,6 +204,8 @@ double BracketNewton1(char *problemType, size_t length, double args[],
             yA = y;
         }
 
+	if (closeEnough(boundsA, boundsB)) return x;
+
         double dy = findAnalyticalDerivative(
             problemType, length, args, x);
 
@@ -199,13 +225,13 @@ double BracketNewton1(char *problemType, size_t length, double args[],
             }
         }
 
+	if (closeEnough(x, nextX)) return nextX;
         x = nextX;
     }
 
     fprintf(stderr, "Error: BracketNewton1 hit max loops.\n");
     exit(1);
 }
-
 
 double BracketNewton2(char *problemType, size_t length, double args[],
                       double boundsA, double boundsB) {
